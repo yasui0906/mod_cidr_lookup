@@ -1,0 +1,122 @@
+- English
+  http://sourceforge.net/projects/modcidrlookup/
+- Japanese
+  http://lab.klab.org/modules/mediawiki/index.php/Mod_cidr_lookup
+
+
+* Overview
+
+The mod_cidr_lookup is Apache module for version 2.2 and 2.0.
+
+The mod_cidr_lookup detects client type by looking up client's source IP
+address in CIDR blocks.
+
+This module sets environment variable (X_CLIENT_TYPE) and HTTP request
+header (X-Client-Type). So we can use it in both Apache (httpd.conf) and Web
+application.
+
+
+* Download
+
+ - http://sourceforge.net/projects/modcidrlookup/
+
+
+* Installation
+
+  ----------------------------------------------------------------
+  VER=1.0
+  tar zxf mod_cidr_lookup-${VER}.tar.gz
+  cd  mod_cidr_lookup-${VER}/apache2
+  make
+  sudo make install
+  ----------------------------------------------------------------
+
+* Configuration
+
+Firstly, load module.
+
+  ----------------------------------------------------------------
+  LoadModule  cidr_lookup_module  modules/mod_cidr_lookup.so
+  ----------------------------------------------------------------
+
+The mod_cidr_lookup provide only one directive "CIDRFile".
+
+** CIDRFile Directive
+
+ Description: set the name of a file containing the list of CIDR blocks
+ Syntax:      CIDRFile file-path
+ Context:     server config, virtual host, directory
+ Module:      mod_cidr_lookup
+
+The CIDRFile directive sets the name of a file containing the list of CIDR
+blocks.
+
+  ----------------------------------------------------------------
+  CIDRFile "/usr/local/etc/ip.d/crowler-google"
+  CIDRFile "/usr/local/etc/ip.d/crowler-yahoo"
+  CIDRFile "/usr/local/etc/ip.d/crowler-livedoor"
+  ----------------------------------------------------------------
+
+Shell-style (fnmatch()) wildcard characters can be used to load several
+files at once, in alphabetical order.
+
+  ----------------------------------------------------------------
+  CIDRFile "/usr/local/etc/ip.d/*"
+  CIDRFile "/usr/local/etc/ip.d/[a-z]*[a-z]"
+  ----------------------------------------------------------------
+
+The name of file become value of environment variable and HTTP request
+header.
+
+example:
+ - httpd.conf
+  ----------------------------------------------------------------
+  <VirtualHost *:80>
+    ServerName   ...
+    DocumentRoot /...
+    ...
+    CIDRFile "/usr/local/etc/ip.d/foo"
+    CIDRFile "/usr/local/etc/ip.d/bar"
+    CIDRFile "/usr/local/etc/ip.d/baz"
+  </VirtualHost>
+  ----------------------------------------------------------------
+
+ - CIDR files
+  ----------------------------------------------------------------
+  $ cat /usr/local/etc/ip.d/foo
+  172.16.0.0/16
+  
+  $ cat /usr/local/etc/ip.d/bar
+  10.0.1.0/24
+  10.1.1.0/24
+  10.2.1.0/24
+  
+  $ cat /usr/local/etc/ip.d/baz
+  10.10.0.0/16
+  10.14.0.0/16
+  ----------------------------------------------------------------
+
+In case that client's source IP address is 10.1.1.61, this IP address match
+second CIDR in file "bar". Hence value of environment variable
+"X_CLIENT_TYPE" and HTTP request header "X-Client-Type" become "bar".
+
+* Note
+
+ - You must stop and start or restart (send signal HUP, USR1) to apply
+   change of CIDR files.
+
+
+* Authors
+
+ - HIROSE Masaaki
+ - YASUI Masanobu
+ - HAMANO Tsukasa
+ - INADA Naoki
+
+* Contact
+
+ - info-modcidrlookup@klab.org
+
+* License
+
+ - Apache License Version 2.0

@@ -1,0 +1,158 @@
+- English
+  http://sourceforge.net/projects/modcidrlookup/
+- Japanese
+  http://lab.klab.org/modules/mediawiki/index.php/Mod_cidr_lookup
+
+
+Overview
+
+   mod_cidr_lookupは、アクセスしてきたクライアントのIPアドレスが、起動時
+   に読み込んでおいたCIDRデータ群のいずれかにマッチするかどうかを判別する
+   ためのモジュールです。Apache 2.0と2.2系に対応しています。
+
+   マッチした結果は、環境変数 (X_CLIENT_TYPE) とHTTPリクエストヘッダ
+   (X-Client-Type) にセットするので、Apache自身とバックエンドのWebアプリ
+   の両方で同じ情報を参照することができます。
+
+使用例
+
+   ※IPアドレス帯域の正確性などについては、情報提供元にお問い合わせくださ
+   い。
+
+クローラからのアクセスは別のサーバにreverse proxyする
+
+   モバイル用のクローラには、送信元IPアドレスを公開しているものがあります
+   。
+     * Google モバイルウェブクローラー
+       http://googlejapan.blogspot.com/2008/05/google.html
+     * モバイル版Yahoo!
+       http://help.yahoo.co.jp/help/jp/search/indexing/indexing-27.html
+     * livedoor
+       http://helpguide.livedoor.com/help/search/qa/grp627
+     * DeNA moba-crawler
+       http://crawler.dena.jp/
+     * ケータイキャリア・クローラIPアドレス - ke-tai.org
+       http://ke-tai.org/index.php?%A5%B1%A1%BC%A5%BF%A5%A4%A5%AD%A5%E3%A5%EA%A5%A2%A1%A6%A5%AF%A5%ED%A1%BC%A5%E9IP%A5%A2%A5%C9%A5%EC%A5%B9
+
+   これらの情報を使って、クローラからのアクセスを判別し、クローラはクロー
+   ラ専用のサーバクラスタへreverse proxyで振り分けることができます。
+
+   mod_rewriteを使った例はこうなります。
+RewriteCond %{ENV:X_CLIENT_TYPE} ^crawler-.*  # (2) 環境変数X_CLIENT_TYPEがcraw
+ler-で始まるときだけ。
+RewriteRule ^/(.*)/$ http://4crawler/$1 [P,L] # (1) http://4crawlerにreverse pr
+oxyする
+
+特定のクライアントからのアクセスを許可する
+
+   Allowディレクティブでは環境変数を参照することができるので、例えば自社
+   のIPアドレス帯からのアクセスを許可したり、
+Allow from env=my_company
+
+   モバイルキャリアからのアクセスを許可したり、
+SetEnvIf X_CLIENT_TYPE "^(docomo|au|softbank)" is_mobile # 3キャリアのいずれか
+の場合は新たに環境変数is_mobileをセットする
+Allow from env=is_mobile
+
+   ということができます。
+
+   またWebアプリから、環境変数を参照したり、
+$type = getenv("X_CLIENT_TYPE"); # docomo, au, softbank, ...
+
+   リクエストヘッダを参照することによって、
+$r->header_in("X-Client-Type"); # docomo, au, softbank, ...
+$headers = apache_request_headers();
+$headers["X-Client-Type"]; # docomo, au, softbank, ...
+
+   判別した情報を参照することができます。
+
+Download
+
+     * http://sourceforge.net/projects/modcidrlookup/
+
+Installation
+
+VER=1.0
+tar zxf mod_cidr_lookup-${VER}.tar.gz
+cd  mod_cidr_lookup-${VER}/apache2
+make
+sudo make install
+
+Configuration
+
+   まず、モジュールをロードします。
+LoadModule  cidr_lookup_module  modules/mod_cidr_lookup.so
+
+   mod_cidr_lookupが提供するディレクティブはCIDRFileだけです。
+
+CIDRFile
+
+   説明 CIDRマッチに使用するための、CIDRの一覧が書かれているテキストファ
+   イルの名前を指定する
+   構文 CIDRFile file-path
+   コンテキスト サーバ設定ファイル, バーチャルホスト, ディレクトリ
+   (.htaccessでは指定できません)
+   モジュール mod_cidr_lookup
+
+   CIDRマッチに使用するための、CIDRの一覧が書かれているテキストファイルを
+   指定します。
+CIDRFile "/usr/local/etc/ip.d/crowler-google"
+CIDRFile "/usr/local/etc/ip.d/crowler-yahoo"
+CIDRFile "/usr/local/etc/ip.d/crowler-livedoor"
+
+   シェル形式(fnmatch)のワイルドカードを使って、複数のファイルを一度に指
+   定することもできます。
+CIDRFile "/usr/local/etc/ip.d/*"
+CIDRFile "/usr/local/etc/ip.d/[a-z]*[a-z]"
+
+   CIDRFileで指定されたファイルの名前が、ヘッダや環境変数に埋め込まれる文
+   字列になります。
+
+   例えば、
+<VirtualHost *:80>
+  ServerName   ...
+  DocumentRoot /...
+  ...
+  CIDRFile "/usr/local/etc/ip.d/foo"
+  CIDRFile "/usr/local/etc/ip.d/bar"
+  CIDRFile "/usr/local/etc/ip.d/baz"
+</VirtualHost>
+
+   という設定とそこで指定しているCIDRのファイルが以下のときに、
+$ cat /usr/local/etc/ip.d/foo
+172.16.0.0/16
+
+$ cat /usr/local/etc/ip.d/bar
+10.0.1.0/24
+10.1.1.0/24
+10.2.1.0/24
+
+$ cat /usr/local/etc/ip.d/baz
+10.10.0.0/16
+10.14.0.0/16
+
+   アクセスしてきたクライアントのIPアドレスが10.1.1.64の場合は、ファイ
+   ルbarに書かれている2つめのCIDR(10.1.1.0/24)にマッチするので、環境変
+   数X_CLIENT_TYPEとリクエストヘッダX-Client-Typeに"bar"がセットされます
+   。
+
+Note
+
+     * CIDRファイルの変更を反映するには、httpdを起動し直すか、シグナ
+       ル(HUP, USR1)を送って再起動してください。
+
+Authors
+
+     * HIROSE Masaaki
+     * YASUI Masanobu
+     * HAMANO Tsukasa
+     * INADA Naoki
+
+
+Contact
+
+     * info-modcidrlookup@klab.org
+
+License
+
+     * Apache License Version 2.0

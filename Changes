@@ -1,0 +1,14 @@
+Revision history for mod_cidr_lookup
+
+1.2  2008-09-16
+  * added hook point "ap_hook_post_read_request". because mod_cidr_lookup
+    and SetEnvIf work fine together in server or virtual host context.
+
+1.1  2008-09-12
+  * move ap_hook point from fixups to header_parser. because mod_cidr_lookup
+    must be performed before mod_setenvif if you refer environment variable
+    with SetEnvIf directive.
+    thanks for bug reporting: es-san
+
+1.0  2008-08-01
+  * initial release
