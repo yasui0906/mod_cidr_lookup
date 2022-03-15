@@ -368,7 +368,11 @@ static const char *lookup_cidr(request_rec *r, CIDR_TRIE *pt)
   apr_sockaddr_t *sockaddr;
   uint8_t        *addr;
 
+#if AP_SERVER_MINORVERSION_NUMBER >= 4
+  sockaddr = r->useragent_addr;
+#else
   sockaddr = r->connection->remote_addr;
+#endif
 
 #if APR_HAVE_IPV6
   if (sockaddr->family == AF_INET6 &&
