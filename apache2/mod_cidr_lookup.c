@@ -46,8 +46,6 @@
 
 #define LINE_SIZE 256
 
-static const char identity[] = "$Identity: mod_cidr_lookup version 0.1 $";
-
 typedef struct CIDR_TRIE {
   const char       *name;
   uint32_t          bits;
@@ -194,9 +192,9 @@ static int read_cidr_file(apr_pool_t *pool, const char *filename, CIDR_TRIE *tri
     }
 
     len = 32;
-    if (sscanf(line, "%s%d", ip, &len) < 1) {
+    if (sscanf(line, "%s%ld", ip, &len) < 1) {
       ap_log_perror(APLOG_MARK, APLOG_WARNING, errno, pool,
-                    "read error: %s(%s/%d)\n", line, ip, len);
+                    "read error: %s(%s/%ld)\n", line, ip, len);
     } else {
       if (!inet_aton(ip, (struct in_addr *)&ad)) {
         ap_log_perror(APLOG_MARK, APLOG_WARNING, errno, pool,
